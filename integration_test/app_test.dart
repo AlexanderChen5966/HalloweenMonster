@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:halloween_monster/data/monsters.dart';
 import 'package:halloween_monster/main.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -54,6 +55,14 @@ void main() {
       await binding.convertFlutterSurfaceToImage();
       await tester.pumpAndSettle();
     }
+    // Decode every image up front so the first screenshot has no blank cards.
+    await tester.runAsync(() async {
+      final context = tester.element(find.byType(Scaffold).first);
+      for (final m in monsters) {
+        await precacheImage(AssetImage(m.image), context);
+      }
+    });
+    await tester.pumpAndSettle();
     // ignore: avoid_print
     print('READY ${DateTime.now().millisecondsSinceEpoch}');
     await pause(6000); // CI starts the screen recorder on READY

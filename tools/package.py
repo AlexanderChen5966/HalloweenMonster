@@ -1,6 +1,6 @@
 """Trim + compress the recordings and compose App Store / Play Store screenshots."""
 import json, os, subprocess, sys
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageStat
 
 FONT = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
 CAPTIONS = {
@@ -14,16 +14,62 @@ CAPTIONS = {
 SIZES = {"ios": (1320, 2868), "android": (1080, 1920)}
 
 
+def _normalize(raw):
+    """Constant-frame-rate low-res copy: simctl's .mov has variable timestamps."""
+    norm = raw + ".norm.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", raw, "-fps_mode", "cfr", "-r", "10",
+                    "-vf", "scale=-2:640", "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
+                    "-pix_fmt", "yuv420p", norm], check=True)
+    return norm
+
+
+def _luma(norm):
+    """Mean luma of the video sampled at 4 fps -> [(t, luma)]."""
+    d = norm + ".frames"
+    os.makedirs(d, exist_ok=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", norm, "-vf", "fps=4,scale=32:-1",
+                    f"{d}/%05d.png"], check=True)
+    files = sorted(os.listdir(d))
+    return [(i / 4, ImageStat.Stat(Image.open(f"{d}/{f}").convert("L")).mean[0])
+            for i, f in enumerate(files)]
+
+
+def _freeze_tail(norm):
+    """Start of the final frozen stretch (app idle after the tour), or None."""
+    out = subprocess.run(["ffmpeg", "-v", "info", "-i", norm, "-vf", "freezedetect=n=-50dB:d=1.5",
+                          "-f", "null", "-"], capture_output=True, text=True).stderr
+    starts, ends = [], []
+    for line in out.splitlines():
+        if "freeze_start:" in line:
+            starts.append(float(line.split("freeze_start:")[1]))
+        if "freeze_end:" in line:
+            ends.append(float(line.split("freeze_end:")[1].split()[0]))
+    if starts and len(starts) > len(ends):
+        return starts[-1]
+    return None
+
+
 def trim_compress(plat, raw):
-    m = json.load(open(f"out-{plat}/marks.json"))
-    ss = max(0, (m["mark_start"] - m["rec_start"]) / 1000 - 0.3)
-    to = (m["mark_end"] - m["rec_start"]) / 1000 + 1.0
+    # flutter drive's log reaches the runner with a long delay, so wall-clock
+    # marks are unreliable: cut by picture content instead.
+    # Start: first sample where the app (dark purple UI) is on screen after
+    # the home screen / white launch screen. End: where the final idle freeze begins.
+    norm = _normalize(raw)
+    ys = _luma(norm)
+    ss = next((t for t, y in ys if y < 60), 0.0)
+    ss = max(0.0, ss - 0.2)
+    tail = _freeze_tail(norm)
+    to = (tail + 1.5) if tail else None
     os.makedirs("deliver", exist_ok=True)
     out = f"deliver/{plat}_demo.mp4"
-    subprocess.run(["ffmpeg", "-y", "-ss", f"{ss:.2f}", "-to", f"{to:.2f}", "-i", raw,
-                    "-vf", "scale=-2:1280:flags=lanczos,fps=30", "-c:v", "libx264", "-crf", "30",
-                    "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out],
-                   check=True)
+    # -ss/-to after -i: decode-accurate cut on the cfr-converted stream.
+    cmd = ["ffmpeg", "-y", "-i", raw, "-fps_mode", "cfr", "-r", "30", "-ss", f"{ss:.2f}"]
+    if to:
+        cmd += ["-to", f"{to:.2f}"]
+    cmd += ["-vf", "scale=-2:1280:flags=lanczos", "-c:v", "libx264", "-crf", "30",
+            "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out]
+    print(plat, "trim", ss, to)
+    subprocess.run(cmd, check=True)
     print(out, os.path.getsize(out) // 1024, "KB")
 
 
