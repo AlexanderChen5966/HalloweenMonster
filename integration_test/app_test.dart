@@ -15,10 +15,6 @@ void main() {
 
   Future<void> shot(WidgetTester tester, String name) async {
     await tester.pumpAndSettle();
-    if (Platform.isAndroid) {
-      await binding.convertFlutterSurfaceToImage();
-      await tester.pumpAndSettle();
-    }
     await binding.takeScreenshot(name);
   }
 
@@ -45,6 +41,11 @@ void main() {
   testWidgets('demo tour', (tester) async {
     await tester.pumpWidget(const HalloweenApp());
     await tester.pumpAndSettle();
+    if (Platform.isAndroid) {
+      // Can only be called once per run; needed before takeScreenshot.
+      await binding.convertFlutterSurfaceToImage();
+      await tester.pumpAndSettle();
+    }
     // ignore: avoid_print
     print('READY ${DateTime.now().millisecondsSinceEpoch}');
     await pause(6000); // CI starts the screen recorder on READY
