@@ -25,6 +25,9 @@ void main() {
   }
 
   Future<void> openMonster(WidgetTester tester, String name, String shotName) async {
+    await tester.scrollUntilVisible(find.text(name), -150,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text(name).first);
     await tester.pumpAndSettle();
     await pause();
@@ -63,7 +66,7 @@ void main() {
     await openMonster(tester, '吸血鬼', '2_vampire');
     await openMonster(tester, '狼人', '3_werewolf');
     await openMonster(tester, '科學怪人', '4_frankenstein');
-    await scrollList(tester, -700);
+    await scrollList(tester, -500);
     await pause();
     await shot(tester, '5_list_more');
     await openMonster(tester, '女巫', '6_witch');

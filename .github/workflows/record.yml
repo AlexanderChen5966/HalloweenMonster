@@ -40,74 +40,14 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
-      - name: Define Pixel 10 hardware profile
-        id: profile
-        run: |
-          # The runner's avdmanager only knows devices up to Pixel 7 Pro, so
-          # register a custom Pixel 10 profile (6.3", 1080x2424, 422 dpi).
-          mkdir -p ~/.android
-          cat > ~/.android/devices.xml <<'XML'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <d:devices xmlns:d="http://schemas.android.com/sdk/android/devices/1">
-            <d:device>
-              <d:name>Pixel 10</d:name>
-              <d:id>pixel_10</d:id>
-              <d:manufacturer>Google</d:manufacturer>
-              <d:meta/>
-              <d:hardware>
-                <d:screen>
-                  <d:screen-size>normal</d:screen-size>
-                  <d:diagonal-length>6.3</d:diagonal-length>
-                  <d:pixel-density>xxhdpi</d:pixel-density>
-                  <d:screen-ratio>long</d:screen-ratio>
-                  <d:dimensions><d:x-dimension>1080</d:x-dimension><d:y-dimension>2424</d:y-dimension></d:dimensions>
-                  <d:xdpi>422</d:xdpi><d:ydpi>422</d:ydpi>
-                  <d:touch><d:multitouch>jazz-hands</d:multitouch><d:mechanism>finger</d:mechanism><d:screen-type>capacitive</d:screen-type></d:touch>
-                </d:screen>
-                <d:networking>Wifi</d:networking><d:networking>NFC</d:networking>
-                <d:sensors>Accelerometer</d:sensors><d:sensors>Gyroscope</d:sensors><d:sensors>GPS</d:sensors><d:sensors>Compass</d:sensors><d:sensors>Barometer</d:sensors><d:sensors>LightSensor</d:sensors><d:sensors>ProximitySensor</d:sensors>
-                <d:mic>true</d:mic>
-                <d:camera><d:location>back</d:location><d:autofocus>true</d:autofocus><d:flash>true</d:flash></d:camera>
-                <d:camera><d:location>front</d:location><d:autofocus>false</d:autofocus><d:flash>false</d:flash></d:camera>
-                <d:keyboard>nokeys</d:keyboard><d:nav>nonav</d:nav>
-                <d:ram unit="GiB">12</d:ram>
-                <d:buttons>soft</d:buttons>
-                <d:internal-storage unit="GiB">128</d:internal-storage>
-                <d:removable-storage unit="GiB"/>
-                <d:cpu>arm64-v8a</d:cpu><d:gpu>Mali</d:gpu>
-                <d:abi>x86_64</d:abi><d:abi>arm64-v8a</d:abi>
-                <d:dock/>
-                <d:power-type>battery</d:power-type>
-              </d:hardware>
-              <d:software>
-                <d:api-level>-</d:api-level>
-                <d:live-wallpaper-support>false</d:live-wallpaper-support>
-                <d:bluetooth-profiles/>
-                <d:gl-version>2.0</d:gl-version>
-                <d:gl-extensions/>
-                <d:status-bar>false</d:status-bar>
-              </d:software>
-              <d:state name="Portrait" default="true">
-                <d:description>The device in portrait orientation</d:description>
-                <d:screen-orientation>port</d:screen-orientation>
-                <d:keyboard-state>keyssoft</d:keyboard-state>
-                <d:nav-state>nonav</d:nav-state>
-              </d:state>
-            </d:device>
-          </d:devices>
-          XML
-          $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager list device -c | grep -x pixel_10
-          echo "profile=pixel_10" >> "$GITHUB_OUTPUT"
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           target: google_apis
           arch: x86_64
-          profile: ${{ steps.profile.outputs.profile }}
+          profile: pixel_7_pro
           disable-animations: false
           script: tools/android.sh
-      - run: echo "profile=${{ steps.profile.outputs.profile }}" >> out-android/info.txt
-        if: always()
       - uses: actions/upload-artifact@v4
         if: always()
         with:
