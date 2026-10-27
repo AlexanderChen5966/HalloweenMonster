@@ -1,0 +1,83 @@
+name: Record demo & screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter analyze && flutter test
+      - run: tools/ios.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: out-ios
+          path: out-ios
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - name: Pick Pixel device profile
+        id: profile
+        run: |
+          avd=$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager
+          $avd list device -c | grep -i '^pixel' || true
+          P=$($avd list device -c | grep -E '^pixel_[0-9]+_pro$|^pixel_[0-9]+$' | sort -V | tail -1)
+          if $avd list device -c | grep -qx pixel_10_pro; then P=pixel_10_pro; fi
+          if $avd list device -c | grep -qx pixel_10; then P=pixel_10; fi
+          echo "profile=$P" | tee -a "$GITHUB_OUTPUT"
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: ${{ steps.profile.outputs.profile }}
+          disable-animations: false
+          script: tools/android.sh
+      - run: echo "profile=${{ steps.profile.outputs.profile }}" >> out-android/info.txt
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: out-android
+          path: out-android
+
+  package:
+    needs: [ios, android]
+    if: always() && (needs.ios.result == 'success' || needs.android.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-cjk python3-pil
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: out-*
+          path: .
+      - run: python3 tools/package.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deliverables
+          path: deliver
