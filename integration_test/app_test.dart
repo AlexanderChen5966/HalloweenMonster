@@ -25,7 +25,13 @@ void main() {
   }
 
   Future<void> openMonster(WidgetTester tester, String name, String shotName) async {
-    await tester.ensureVisible(find.text(name).first);
+    final card = find.text(name);
+    if (card.evaluate().isEmpty) {
+      // Lazily built list: scroll down until the card exists.
+      await tester.scrollUntilVisible(card, 300,
+          scrollable: find.byType(Scrollable).first);
+    }
+    await Scrollable.ensureVisible(tester.element(card.first), alignment: 0.5);
     await tester.pumpAndSettle();
     await tester.tap(find.text(name).first);
     await tester.pumpAndSettle();
