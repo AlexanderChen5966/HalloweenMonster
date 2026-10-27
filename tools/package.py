@@ -56,14 +56,16 @@ def trim_compress(plat, raw):
     # the home screen / white launch screen. End: where the final idle freeze begins.
     norm = _normalize(raw)
     ys = _luma(norm)
-    ss = next((t for t, y in ys if y < 60), 0.0)
+    t_app = next((t for t, y in ys if 8 < y < 60), 0.0)
+    # Skip the moment the cards are still blank (before the images are drawn).
+    ss = next((t for t, y in ys if t >= t_app and 35 <= y < 200), t_app)
     ss = max(0.0, ss - 0.2)
     tail = _freeze_tail(norm)
-    to = (tail + 1.5) if tail else None
+    to = (tail + 3.0) if tail else None
     os.makedirs("deliver", exist_ok=True)
     out = f"deliver/{plat}_demo.mp4"
     # -ss/-to after -i: decode-accurate cut on the cfr-converted stream.
-    cmd = ["ffmpeg", "-y", "-i", raw, "-fps_mode", "cfr", "-r", "30", "-ss", f"{ss:.2f}"]
+    cmd = ["ffmpeg", "-v", "error", "-y", "-i", raw, "-fps_mode", "cfr", "-r", "30", "-ss", f"{ss:.2f}"]
     if to:
         cmd += ["-to", f"{to:.2f}"]
     cmd += ["-vf", "scale=-2:1280:flags=lanczos", "-c:v", "libx264", "-crf", "30",
