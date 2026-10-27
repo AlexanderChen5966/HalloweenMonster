@@ -25,8 +25,7 @@ void main() {
   }
 
   Future<void> openMonster(WidgetTester tester, String name, String shotName) async {
-    await tester.scrollUntilVisible(find.text(name), -150,
-        scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text(name).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text(name).first);
     await tester.pumpAndSettle();
