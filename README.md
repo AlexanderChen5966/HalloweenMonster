@@ -21,3 +21,10 @@ frankenstein — 《Frankenstein》1831 年版插圖；witch — Witch winks 童
 skeleton — Guyot Marchand《Danse Macabre》；mummy — Ginger (mummy)；death — Gustave Doré《Death on the Pale Horse》。
 
 App Icon 為自行繪製。
+
+## 成品（release/）
+- `release/videos/`：iPhone 17 Pro Max 與 Pixel（螢幕設為 Pixel 10 的 1080×2424）的操作影片，已裁掉非 App 的部分並壓縮
+- `release/store/AppStore_1320x2868/`、`release/store/GooglePlay_1080x1920/`：上架用截圖
+- `release/app_icon_1024.png`：App Icon（原始檔在 `assets/icon/icon.png`）
+
+註：GitHub runner 沒有 iPhone 18 Pro Max，iPhone 影片以 iPhone 17 Pro Max 錄製。
